@@ -14,24 +14,6 @@
 #include <limits.h>
 #include <SPI.h>
 
-extern void DDS_Fout (uint32_t *F_OUT, int16_t ASF_Val, uint8_t Num_Prof);
-extern void DDS_Init(void);
-void DDS_GPIO_Init(void);
-void DDS_SPI_Init(void);
-void DDS_Config(uint16_t Instr_Word, uint8_t Data);
-
-extern uint64_t strFTW[];
-extern uint16_t strdBm[];
-void DDS_Current(uint8_t DAC_Current);
-void DDS_UPDATE(void);
-extern void DDS_RAM (uint32_t *BUFF_RAM_DDS, uint16_t NumRAM_Words);
-extern void Read_DDS (uint8_t ADR_DDS, uint16_t NUM_BYTE);
-extern void PlaybackRAM (uint8_t RAM_enable_MODE, uint8_t RAM_Playback_MODE);
-extern void DDS_FM (uint32_t F_carrier, uint32_t F_mod, uint32_t F_dev);
-void HAL_GPIO_WritePin (int port, int pin, int mode);
-void HAL_SPI_Transmit(int *blank, uint8_t *strBuffer, int nums, int pause);
-void ASF_SET (uint16_t *Amplitude_ramp_rate1, uint16_t Amplitude_scale_factor1, uint8_t Amplitude_step_size1);
-
 #define GPIO_PIN_SET HIGH
 #define GPIO_PIN_RESET LOW
 #define GPIOA 0
@@ -40,7 +22,7 @@ void ASF_SET (uint16_t *Amplitude_ramp_rate1, uint16_t Amplitude_scale_factor1, 
 #define GPIOD 0
 
 
-#define F_SYSCLK 1000000000.0 // 1Ghz setting in PLL
+//#define F_SYSCLK 1000000000.0 // defualt 1Ghz setting in PLL (used for XO, TCXO, VC-TCXO only)
 
 
 /* Select SPI for DDS AD9910 */
@@ -341,5 +323,31 @@ pin indicates new data for transmission. In continuous mode, this pin remains hi
 
 #define No_dwell_high 			0x20
 #define Zero_crossing 			0x08
+//*********
 
+extern void DDS_Fout (uint32_t *F_OUT, int16_t ASF_Val, uint8_t Num_Prof);
+extern void SingleProfileFreqOut(uint32_t freq_output, int16_t amplitude_dB_output);
+extern void DDS_Init(bool PLL, bool Divider, uint32_t Ref_Clk);
+void DDS_GPIO_Init(void);
+void DDS_SPI_Init(void);
+void DDS_Config(uint16_t Instr_Word, uint8_t Data);
+void PrepRegistersToSaveWaveForm (uint64_t Step_Rate, uint16_t Step);
+extern void SaveFMWavesToRAM (uint32_t F_carrier, uint32_t F_mod, uint32_t F_dev);
+extern void SaveAMWavesToRAM(uint32_t F_carrier, uint32_t F_mod, uint32_t AM_DEPH, int16_t Amplitude_dB);
+extern void PlaybackFMFromRAM(int16_t Amplitude_dB);
+extern void PlaybackAMFromRAM(uint32_t F_carrier);
+
+extern uint64_t strFTW[];
+extern uint16_t strdBm[];
+void DDS_Current(uint8_t DAC_Current);
+void DDS_UPDATE(void);
+extern void DDS_RAM (uint32_t *BUFF_RAM_DDS, uint16_t NumRAM_Words);
+extern void Read_DDS (uint8_t ADR_DDS, uint16_t NUM_BYTE);
+extern void PlaybackRAM (uint8_t RAM_enable_MODE, uint8_t RAM_Playback_MODE);
+extern void DDS_FM (uint32_t F_carrier, uint32_t F_mod, uint32_t F_dev);
+void HAL_GPIO_WritePin (int port, int pin, int mode);
+void HAL_SPI_Transmit(int *blank, uint8_t *strBuffer, int nums, int pause);
+void ASF_SET (uint16_t *Amplitude_ramp_rate1, uint16_t Amplitude_scale_factor1, uint8_t Amplitude_step_size1);
+extern void DDS_Init_OLD(void);
+void calcBestStepRate(uint16_t *Step, uint64_t *Step_Rate, uint32_t F_mod);
 #endif
