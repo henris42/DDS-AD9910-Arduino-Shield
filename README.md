@@ -42,3 +42,5 @@ Key Benefits:
 </pre>
 
 Where V means that the component must be installed (soldered), and X - means that the component must be removed
+
+# GA_Flasher can be used to upload compiled firmware from "Bin" folder: https://github.com/afch/GA_Flasher
