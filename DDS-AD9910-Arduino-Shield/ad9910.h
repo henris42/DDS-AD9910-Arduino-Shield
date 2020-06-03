@@ -350,4 +350,6 @@ void HAL_SPI_Transmit(int *blank, uint8_t *strBuffer, int nums, int pause);
 void ASF_SET (uint16_t *Amplitude_ramp_rate1, uint16_t Amplitude_scale_factor1, uint8_t Amplitude_step_size1);
 extern void DDS_Init_OLD(void);
 void calcBestStepRate(uint16_t *Step, uint64_t *Step_Rate, uint32_t F_mod);
+uint32_t CalcRealDDSCoreClockFromOffset();
+
 #endif

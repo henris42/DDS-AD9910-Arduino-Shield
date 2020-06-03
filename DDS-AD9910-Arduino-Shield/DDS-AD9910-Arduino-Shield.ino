@@ -2,15 +2,39 @@
  *  
  *  Для любой модуляции нужно сначала вызывать фнукцию calcBestStepRate перед PrepRegistersToSaveWaveForm, 
  *  зачастую это так и сдлеано внутри функций SaveAMWavesToRAM и SaveFMWavesToRAM
- * 
- * 
+ *  v.2.07 //02.06.2020
+ *  Added: offset paramter at Core Clock Menu
+ *  v.2.06 //29.05.2020
+ *  шумы были из-за того что внутри DDS_INIT была явная запись частоты 100 мгц в область памяти сингл профайла 
+ *  выбор сингл профайла перенесен из функции SingleProfileFreqOut в функцию DDS_FOUT
+ *  в функции DDS_FOUT реализован алгоритм установления значения на выходах для выбора заданного профайла
+ *  v.2.05 //27.05.2020
+ *  найдена проблема с шумом суть в неправильном расчете FTW из-за проблем с округлением  
+ *  для решения использовалась библиотека FLOAT64 
+ * v.2.04 //26.05.2020 
+ * продолжаем работу над Core Clock offset
+ * было принято решение прибалять ClockOffset к DDS_Core_Clock уже непосредственно во время расчетов (но это еще не сделано!)
+ * добавлено сохранение и загрузка ClockOffset в и из EEPROM
+ * Что-то пошло не так: частота 100 МГЦ, SPAN 1МГЦ, BW 100 HZ, на анализаторе много шумов, некоторые переходят уровень -40 дцБ
+ * нужно сравнить с тем как было с прошивко 2.03
+ * v.2.03 //23.05.2020 
+ * Added: Core Clock offset !!!!!!!!!!недоделали !!!!!!!!!! нет сохранение в EEPROM и значение залазит на слово exit
+ * Fixed: dBm value display when AM enabled (+-) 
+ * v.2.02 //20.05.2020
+ * Fixed: Wrong Amplitude calculation for FM modulation
+ * Fixed: bug with core clock value
+ * Added: frequency change was accelerated
+ * v.2.01 //19.05.2020
+ * Fixed: const 0.01745 changed to PI/180.0
+ * Added: CalcDBCorrection function to correct dBm value on display when AM enabled 
+ * Fixed: bug with no output when FM deviation freq lower than 1000 kHz
  */
 #include "main.h"
-
-#define FIRMWAREVERSION 2.0 //01.03.2020 Rel.2
+#include "ad9910.h"
+#define FIRMWAREVERSION 2.07 //02.06.2020 Rel.8
 
 #define LOW_FREQ_LIMIT  100000 
-#define HIGH_FREQ_LIMIT  490000000 
+#define HIGH_FREQ_LIMIT  600000000 
 
 #define M_ADR 24
 #define K_ADR 28
@@ -44,6 +68,7 @@
 //*********************************
 
 int M, K, H, A, MenuPos;
+int DBCorrection=0;
 
 uint32_t kley;
 
@@ -68,6 +93,8 @@ void setup()
     EEPROM.write(MAIN_SETTINGS_FLAG_ADR, 255); //flag that force save default main settings to EEPROM 
     EEPROM.write(MODULATION_SETTINGS_FLAG, 255); //flag that force save default modulation settings to EEPROM 
   }
+
+  //DDS_Init2();
   
   LoadMain();
   LoadClockSettings();
@@ -83,7 +110,7 @@ void setup()
   upButton.multiclickTime = 1;  // Time limit for multi clicks*/
   upButton.longClickTime  = 1000; // time until "held-down clicks" register*/
 
-  downButton.debounceTime   = 70;   // Debounce timer in ms
+  downButton.debounceTime   = 75;   // Debounce timer in ms
   downButton.multiclickTime = 1;  // Time limit for multi clicks
   downButton.longClickTime  = 1000; // time until "held-down clicks" register
 
@@ -99,6 +126,11 @@ void setup()
   int FMDevK=0;
   int FMDevH=0;
 
+  uint32_t UpButtonPressed=0;
+  uint32_t DownButtonPressed=0;
+  int increment=1;
+  int decrement=1;
+  
 void loop ()
 {
 
@@ -117,15 +149,19 @@ void loop ()
     modeButton.Update();
     upButton.Update();
     downButton.Update();
-
+    
     if (upButton.clicks != 0) functionUpButton = upButton.clicks;
 
+    if (upButton.depressed == true) 
+    {
+      if ((millis() - UpButtonPressed) > 2000) increment=10; else increment=1;  
+    } else UpButtonPressed=millis();
     if ((functionUpButton == 1 && upButton.depressed == false) ||
         (functionUpButton == -1 && upButton.depressed == true))
     {
-      if (MenuPos==0) {if (Check (M+1, K, H)) M=Inc(M);}
-      if (MenuPos==1) {if (Check (M, K+1, H)) K=Inc(K);}
-      if (MenuPos==2) {if (Check (M, K, H+1)) H=Inc(H);}
+      if (MenuPos==0) {if (Check (M+increment, K, H)) M=Inc(M);}
+      if (MenuPos==1) {if (Check (M, K+increment, H)) K=Inc(K);}
+      if (MenuPos==2) {if (Check (M, K, H+increment)) H=Inc(H);}
       if (MenuPos==3) 
       {
         A=A-1;
@@ -135,20 +171,25 @@ void loop ()
       UpdateDisplay();
     } 
     if (upButton.depressed == false) functionUpButton=0; 
-    
-    
+
+          
     if (downButton.clicks != 0) functionDownButton = downButton.clicks;
+
+    if (downButton.depressed == true) 
+    {
+      if ((millis() - DownButtonPressed) > 2000) decrement=10; else decrement=1;  
+    } else DownButtonPressed=millis();
 
     if ((functionDownButton == 1 && downButton.depressed == false) ||
         (functionDownButton == -1 && downButton.depressed == true))
     {
-      if (MenuPos==0) {if (Check(M-1, K, H)) M=Dec(M);}
-      if (MenuPos==1) {if (Check(M, K-1, H)) K=Dec(K);}
-      if (MenuPos==2) {if (Check(M, K, H-1)) H=Dec(H);}
+      if (MenuPos==0) {if (Check(M-decrement, K, H)) M=Dec(M);}
+      if (MenuPos==1) {if (Check(M, K-decrement, H)) K=Dec(K);}
+      if (MenuPos==2) {if (Check(M, K, H-decrement)) H=Dec(H);}
       if (MenuPos==3) 
       {
         A=A+1;
-        if (A>84) A=84;
+        if (A>72) A=72; // Amplitude low limit
       }
       if (MenuPos==4) Modultaion_Menu();
       UpdateDisplay();
@@ -189,14 +230,13 @@ void MakeOut()
   switch (ModIndex)
   {
   case 0: //модуляция отключена
-    //Freq_Out(M*1000000L + K*1000L + H, A*-1);
     SingleProfileFreqOut(M*1000000L + K*1000L + H, A*-1);
     break;
   case 1: // AM амплитудная модуляция
     SaveAMWavesToRAM(M*1000000L + K*1000L + H, MFreqK*1000L+MFreqH, AMDepth, A*-1);
     break;
   case 2: // FM частотная модуляция
-    SaveFMWavesToRAM(M*1000000L + K*1000L + H, MFreqK*1000L+MFreqH, FMDevK*1000L+MFreqH);
+    SaveFMWavesToRAM(M*1000000L + K*1000L + H, MFreqK*1000L+MFreqH, FMDevK*1000L+FMDevH);
     break;
   }
 }
@@ -276,15 +316,17 @@ void UpdateDisplay()
 
   if (MenuPos==3) display.setTextColor(BLACK, WHITE); 
     else display.setTextColor(WHITE);
+  if (ModIndex!=1) DBCorrection=0;
+    else DBCorrection=CalcDBCorrection();
   if (DACCurrentIndex==0)
   {
     display.print("-");  
-    display.print(PreZero(A));
+    display.print(PreZero(abs(A+DBCorrection)));
   } else
   {
-    if ((-1*A+4)>0) display.print("+");  
+    if ((-1*A+4-DBCorrection)>0) display.print("+");  
       else display.print("-");  
-      display.print(PreZero(abs(-1*A+4)));
+      display.print(PreZero(abs(-1*A+4-DBCorrection)));
   }
   display.setTextSize(1);
   display.setTextColor(WHITE);
@@ -309,7 +351,7 @@ String PreZero(int Digit)
 int Inc(int val)
 {
   uint32_t FreqVal=M*1000000 + K*1000 + H;
-  val++;
+  val=val+increment;
   if (val>999) val=999;
   return val;
 }
@@ -317,7 +359,7 @@ int Inc(int val)
 int Dec(int val)
 {
  uint32_t FreqVal=M*1000000 + K*1000 + H;
- val--;
+ val=val-decrement;
  if (val<0) val=0;
  return val;
 }
@@ -661,4 +703,15 @@ void LoadMain()
     Serial.println(A);
     #endif
   }
+}
+
+/*
+ * Расчет корректировки в dBm используется только для AM модуляции, значение зависит ТОЛЬКО от глубины модуляции
+ */
+int CalcDBCorrection()
+{
+  float ArmsREAL=(1+AMDepth/100.0)*0.2236;
+  float P_REAL=ArmsREAL*ArmsREAL/50.0;
+  DBCorrection=round(10*log10(P_REAL/0.001));
+  return DBCorrection;
 }

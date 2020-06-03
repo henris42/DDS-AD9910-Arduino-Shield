@@ -9,7 +9,7 @@
  * 05.08.2017
  * Author Grisha Anofriev e-mail: grisha.anofriev@gmail.com
 ******************************************************************************/
-
+#include <Float64.h>
 #define DEFAULT_STEP_VALUE 1000
 
 #include "ad9910.h"
@@ -23,11 +23,12 @@ int hspi1=0;
 
 uint32_t DAC_Current;
 
-uint8_t strBuffer[9]={129, 165, 15, 255};
+uint8_t strBuffer[9];//={129, 165, 15, 255};
 
 uint32_t FTW;
 uint32_t *jlob;
 
+extern uint32_t Ref_Clk;
 
 void HAL_SPI_Transmit(int *blank, uint8_t *strBuffer, int nums, int pause)
 {
@@ -115,6 +116,9 @@ void DDS_SPI_Init(void)
 void DDS_UPDATE(void)
 {
 	// Required - data updates from memory
+   #if DBG==1
+   Serial.println("***DDS_UPDATE****");
+   #endif
 	 HAL_Delay(10);
 	 HAL_GPIO_WritePin(DDS_IO_UPDATE_GPIO_PORT, DDS_IO_UPDATE_PIN, GPIO_PIN_RESET); // IO_UPDATE = 0
 	 HAL_Delay(10);
@@ -125,8 +129,6 @@ void DDS_UPDATE(void)
 }
  
 
-
-
 /*****************************************************************************************
    F_OUT - Set Frequency in HZ 
    Num_Prof - Single Tone Mode 0..7
@@ -134,38 +136,71 @@ void DDS_UPDATE(void)
 *****************************************************************************************/
 void DDS_Fout (uint32_t *F_OUT, int16_t Amplitude_dB, uint8_t Num_Prof)
 {
+   uint32_t RealDDSCoreClock=CalcRealDDSCoreClockFromOffset();
+   //FTW = ((uint32_t)(4294967296.0 *((float)*F_OUT / (float)DDS_Core_Clock)));
+   //FTW = round(4294967296.0 *((float)*F_OUT / ((float)DDS_Core_Clock-ClockOffset))); // закомментировано 27.05.2020
+
+   // значение FTW должно быть 4294967296 
+    float64_t f64F_OUT=f64(*F_OUT);
+    float64_t f64CoreClock=f64(RealDDSCoreClock);
+    float64_t TwoPower32=f64(4294967295UL);
+    float64_t f64FTW;
+    //float64_t Offset=f64(ClockOffset);
+    //CoreClock=f64_sub(CoreClock, Offset);
+    f64FTW=f64_div(TwoPower32, f64CoreClock);
+    f64FTW=f64_mul(f64FTW, f64F_OUT);
+   //FTW = 4294967296 * (*F_OUT / (float)tmpCoreClock);
+   bool a;
+   uint_fast8_t softfloat_roundingMode;
+   softfloat_roundingMode=softfloat_round_near_maxMag;
+   FTW=f64_to_ui32(f64FTW, softfloat_roundingMode, a);
+   jlob = & FTW;
+   
    #if DBG==1
    Serial.print(F("*F_OUT="));
    Serial.println(*F_OUT); 
    Serial.print(F("DDS_Core_Clock="));
    Serial.println(DDS_Core_Clock); 
-   float FoutByDDScore=(double)*F_OUT / (double)DDS_Core_Clock;
-   Serial.print(F("FoutByDDScore="));
-   Serial.println(FoutByDDScore, 6); 
+   Serial.print(F("FTW="));
+   Serial.println(FTW); 
    #endif
    
-   FTW = ((uint32_t)(4294967296.0 *((float)*F_OUT / (float)DDS_Core_Clock)));
-   jlob = & FTW;	
-
-	 HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET); 	 
-	 strBuffer[0] = Num_Prof; // Single_Tone_Profile_0;
+   HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET); 	 
+	 strBuffer[0] = Num_Prof; // Single_Tone_Profile_#;
 
    //ASF  - Amplitude 14bit 0...16127
 	 strBuffer[1] =  (uint16_t)powf(10,(Amplitude_dB+84.288)/20.0) >> 8;     
 	 strBuffer[2] =  (uint16_t)powf(10,(Amplitude_dB+84.288)/20.0);         
 	 strBuffer[3] = 0x00;
 	 strBuffer[4] = 0x00;
-	 
+
+   
+   
 	 strBuffer[5] = *(((uint8_t*)jlob)+ 3);
 	 strBuffer[6] = *(((uint8_t*)jlob)+ 2);
 	 strBuffer[7] = *(((uint8_t*)jlob)+ 1);
 	 strBuffer[8] = *(((uint8_t*)jlob));
-		
+
    HAL_SPI_Transmit(&hspi1, (uint8_t*)strBuffer, 9, 1000);
 	 HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_SET);
 	 
 	 DDS_UPDATE(); 
-	 
+  
+   int Prof=Num_Prof;
+   Prof=Prof-14; // address of 0 profile: 0x0E
+
+   Serial.print("Prof=");
+   Serial.println(Prof);
+   
+   if (bitRead(Prof, 0)==1) HAL_GPIO_WritePin(DDS_PROFILE_0_GPIO_PORT, DDS_PROFILE_0_PIN, GPIO_PIN_SET);
+    else HAL_GPIO_WritePin(DDS_PROFILE_0_GPIO_PORT, DDS_PROFILE_0_PIN, GPIO_PIN_RESET);
+   if (bitRead(Prof, 1)==1) HAL_GPIO_WritePin(DDS_PROFILE_1_GPIO_PORT, DDS_PROFILE_1_PIN, GPIO_PIN_SET);
+    else HAL_GPIO_WritePin(DDS_PROFILE_1_GPIO_PORT, DDS_PROFILE_1_PIN, GPIO_PIN_RESET);
+   if (bitRead(Prof, 2)==1) HAL_GPIO_WritePin(DDS_PROFILE_2_GPIO_PORT, DDS_PROFILE_2_PIN, GPIO_PIN_SET);
+    else HAL_GPIO_WritePin(DDS_PROFILE_2_GPIO_PORT, DDS_PROFILE_2_PIN, GPIO_PIN_RESET);
+
+   DDS_UPDATE(); 
+   //while (1);
 }	
 
 
@@ -218,13 +253,15 @@ void calcBestStepRate(uint16_t *Step, uint64_t *Step_Rate, uint32_t F_mod)
 {
   double T_Step;
   double fStep_Rate;
+
+  uint32_t RealDDSCoreClock=CalcRealDDSCoreClockFromOffset();
   
   T_Step = 1.0/(F_mod * *Step); // necessary time step
-  fStep_Rate = (T_Step * (float)DDS_Core_Clock)/4; // the value of M for the register Step_Rate, for the desired sampling rate from RAM
+  fStep_Rate = (T_Step * (float)RealDDSCoreClock)/4; // the value of M for the register Step_Rate, for the desired sampling rate from RAM
 
   *Step_Rate=ceil(fStep_Rate);
  
-  *Step=(1.0/((*Step_Rate*4)/(float)DDS_Core_Clock))/F_mod;
+  *Step=(1.0/((*Step_Rate*4)/(float)RealDDSCoreClock))/F_mod;
 }
 
 /*****************************************************************************************
@@ -286,9 +323,14 @@ void SaveAMWavesToRAM(uint32_t F_carrier, uint32_t F_mod, uint32_t AM_DEPH, int1
   
   for (n = 0; n < Step; n++)
     {
-     Rad = Deg * 0.01745; // conversion from degrees to radians RAD=DEG*Pi/180
+     //Rad = Deg * 0.01745; // conversion from degrees to radians RAD=DEG*Pi/180
+     Rad = Deg * PI/180.0; 
      Sin = sin(Rad); // Get Sinus
      Amplitude_AM = MaxAmplitudeValue - (((MaxAmplitudeValue * (1 + Sin)) / 2) * (AM_DEPH/100.0)); 
+     #if DBG==1
+     //Serial.print("Amplitude_AM=");
+     Serial.println(Amplitude_AM);
+     #endif
      FTW_AM = Amplitude_AM<<18;
      aFTW_AM_8_bit[0]=(FTW_AM>>24);
      aFTW_AM_8_bit[1]=(FTW_AM>>16);
@@ -324,7 +366,18 @@ void PlaybackAMFromRAM(uint32_t F_carrier)
    strBuffer[0] = FTW_addr;
 
    //Set Output Frequency for AM modulation
-   uint32_t FTW_AM = round((float)TWO_POWER_32 * ((float)F_carrier / (float)DDS_Core_Clock)); 
+   //uint32_t FTW_AM = round((float)TWO_POWER_32 * ((float)F_carrier / (float)DDS_Core_Clock)); 
+   uint32_t RealDDSCoreClock=CalcRealDDSCoreClockFromOffset();
+   float64_t f64F_carrier=f64(F_carrier);
+   float64_t f64CoreClock=f64(RealDDSCoreClock);
+   float64_t TwoPower32=f64(4294967295UL);
+   float64_t f64FTW;
+   f64FTW=f64_div(TwoPower32, f64CoreClock);
+   f64FTW=f64_mul(f64FTW, f64F_carrier);
+   bool a;
+   uint_fast8_t softfloat_roundingMode;
+   softfloat_roundingMode=softfloat_round_near_maxMag;
+   uint32_t FTW_AM=f64_to_ui32(f64FTW, softfloat_roundingMode, a);
    
    #if DBG==1 
    Serial.print(F("FTW_AM="));
@@ -379,13 +432,30 @@ void SaveFMWavesToRAM (uint32_t F_carrier, uint32_t F_mod, uint32_t F_dev)
   HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);
   uint8_t MemAdr=RAM_Start_Word;
   HAL_SPI_Transmit(&hspi1, &MemAdr, 1, 1000);
+
+     uint32_t RealDDSCoreClock=CalcRealDDSCoreClockFromOffset();
+   float64_t f64FREQ_FM;//=f64(FREQ_FM);
+   float64_t f64CoreClock=f64(RealDDSCoreClock);
+   float64_t TwoPower32=f64(4294967295UL);
+   float64_t f64FTW;
+   bool a;
+   uint_fast8_t softfloat_roundingMode;
+   softfloat_roundingMode=softfloat_round_near_maxMag;
   
   for (n = 0; n < Step; n++)
     {
-     Rad = Deg * 0.01745; // conversion from degrees to radians RAD=DEG*Pi/180
+     //Rad = Deg * 0.01745; // conversion from degrees to radians RAD=DEG*Pi/180
+     Rad = Deg * PI/180.0;
      Sin = sin(Rad); // Get Sinus
      FREQ_FM = F_carrier + (F_dev * Sin);
-     FTW_FM = round((double)TWO_POWER_32 * ((double)FREQ_FM / (double)DDS_Core_Clock));   
+     //FTW_FM = round((double)TWO_POWER_32 * ((double)FREQ_FM / (double)DDS_Core_Clock)); 
+     
+    f64FREQ_FM=f64(FREQ_FM);
+   f64FTW=f64_div(TwoPower32, f64CoreClock);
+   f64FTW=f64_mul(f64FTW, f64FREQ_FM);
+   
+   FTW_FM=f64_to_ui32(f64FTW, softfloat_roundingMode, a);
+     
      FTW_FM_8_bit[0]=(FTW_FM>>24);
      FTW_FM_8_bit[1]=(FTW_FM>>16);
      FTW_FM_8_bit[2]=(FTW_FM>>8);
@@ -395,7 +465,7 @@ void SaveFMWavesToRAM (uint32_t F_carrier, uint32_t F_mod, uint32_t F_dev)
     }
     HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_SET);
     DDS_UPDATE();
-
+     Serial.println("FM wave saved to RAM...");
     PlaybackFMFromRAM(A*-1);
 }
 
@@ -420,11 +490,13 @@ void PlaybackFMFromRAM(int16_t Amplitude_dB)
 
    uint16_t AmplitudeRegistersValue=(uint16_t)powf(10,(Amplitude_dB+84.288)/20.0);
 
+   //AmplitudeRegistersValue=AmplitudeRegistersValue<<2;
+
    HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);    
    strBuffer[0] = ASF_addr;
    strBuffer[1] = 0x00; 
    strBuffer[2] = 0x00; 
-   strBuffer[3] = AmplitudeRegistersValue >> 8; //15:8
+   strBuffer[3] = AmplitudeRegistersValue >> 6; //15:8
    AmplitudeRegistersValue = AmplitudeRegistersValue << 2;
    AmplitudeRegistersValue = AmplitudeRegistersValue & B11111100;
    strBuffer[4] = AmplitudeRegistersValue; //7:2
@@ -467,6 +539,7 @@ void DDS_Init(bool PLL, bool Divider, uint32_t Ref_Clk)
    
    // It is very important for DDS AD9910 to set the initial port states
    HAL_GPIO_WritePin(DDS_MASTER_RESET_GPIO_PORT, DDS_MASTER_RESET_PIN, GPIO_PIN_SET);   // RESET = 1
+   HAL_Delay(10);
    HAL_GPIO_WritePin(DDS_MASTER_RESET_GPIO_PORT, DDS_MASTER_RESET_PIN, GPIO_PIN_RESET); // RESET = 0
    HAL_GPIO_WritePin(DDS_IO_UPDATE_GPIO_PORT, DDS_IO_UPDATE_PIN, GPIO_PIN_RESET);       // IO_UPDATE = 0   
    HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_SET);               // CS = 1
@@ -519,10 +592,13 @@ void DDS_Init(bool PLL, bool Divider, uint32_t Ref_Clk)
       /******************* External Oscillator TCXO 3.2 - 60 MHz ***********************************************/ 
       HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);    
       strBuffer[0] = CFR3_addr;
-      strBuffer[1] = VCO5;  // | DRV0_REFCLK_OUT_High_output_current;
-      strBuffer[2] = Icp287uA;   
+      if (DDS_Core_Clock<=1000000000) strBuffer[1] = VCO3;
+        else strBuffer[1] = VCO5;  // | DRV0_REFCLK_OUT_High_output_current;
+      strBuffer[2] = Icp387uA;   // Icp212uA, Icp237uA, Icp262uA, Icp287uA, Icp312uA, Icp337uA, Icp363uA, Icp387uA 
       strBuffer[3] = REFCLK_input_divider_ResetB | PLL_enable; // REFCLK_input_divider_bypass; //
-      strBuffer[4]=((uint32_t)DDS_Core_Clock/Ref_Clk)*2; // multiplier for PLL
+      //strBuffer[4]=((uint32_t)DDS_Core_Clock/Ref_Clk)*2; // multiplier for PLL
+      strBuffer[4]=round((float)DDS_Core_Clock/(float)Ref_Clk)*2; // multiplier for PLL
+      //strBuffer[4]=round(((float)DDS_Core_Clock-ClockOffset)/(float)Ref_Clk)*2; // multiplier for PLL
       #if DBG==1
       Serial.print(F("PLL Multiplier="));
       Serial.println(strBuffer[4]);
@@ -546,8 +622,8 @@ void DDS_Init(bool PLL, bool Divider, uint32_t Ref_Clk)
    
    DDS_UPDATE();
    
-   HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);    
-   strBuffer[0] = 0x0E;
+   /*HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);    
+   strBuffer[0] = 0x0E; //profile 0 address
    strBuffer[1] = 0x3F;
    strBuffer[2] = 0xFF;
    strBuffer[3] = 0x00;
@@ -555,12 +631,13 @@ void DDS_Init(bool PLL, bool Divider, uint32_t Ref_Clk)
    
    strBuffer[5] = 0x19;
    strBuffer[6] = 0x99;
-   strBuffer[7] = 0x99;
-   strBuffer[8] = 0x9A; // 100mhz
+   strBuffer[7] = 0x9A;
+   strBuffer[8] = 0x6C; // 100mhz
    HAL_SPI_Transmit(&hspi1, (uint8_t*)strBuffer, 9, 1000);
    HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_SET);
    
    DDS_UPDATE(); 
+   //while (1);*/
 }                
 
 /*************************************************************************
@@ -587,9 +664,30 @@ void SingleProfileFreqOut(uint32_t freq_output, int16_t amplitude_dB_output)
   HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_SET);  
   DDS_UPDATE();
    
-  DDS_Fout(&freq_output, amplitude_dB_output, Single_Tone_Profile_5);
+  DDS_Fout(&freq_output, amplitude_dB_output, Single_Tone_Profile_0);
  
-  HAL_GPIO_WritePin(DDS_PROFILE_0_GPIO_PORT, DDS_PROFILE_0_PIN, GPIO_PIN_SET);
+  /*HAL_GPIO_WritePin(DDS_PROFILE_0_GPIO_PORT, DDS_PROFILE_0_PIN, GPIO_PIN_SET);
   HAL_GPIO_WritePin(DDS_PROFILE_1_GPIO_PORT, DDS_PROFILE_1_PIN, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(DDS_PROFILE_2_GPIO_PORT, DDS_PROFILE_2_PIN, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(DDS_PROFILE_2_GPIO_PORT, DDS_PROFILE_2_PIN, GPIO_PIN_SET);*/
+}
+
+
+/**************
+ * Return Real Core Clock based on ClockOffset 
+ */
+uint32_t CalcRealDDSCoreClockFromOffset()
+{
+  int N=DDS_Core_Clock/Ref_Clk;
+  uint32_t RCC = (Ref_Clk+ClockOffset)*N;
+  #if DBG==1
+  Serial.print("DDS_Core_Clock=");
+  Serial.println(DDS_Core_Clock);
+  Serial.print("Ref_Clk=");
+  Serial.println(Ref_Clk);
+  Serial.print("N=");
+  Serial.println(N); 
+  Serial.print("RCC=");
+  Serial.println(RCC);
+  #endif
+  return RCC;
 }

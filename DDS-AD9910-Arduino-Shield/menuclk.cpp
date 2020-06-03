@@ -7,8 +7,9 @@
   #define CLOCK_MENU_DIVIDER_INDEX        2
   #define CLOCK_MENU_DAC_CURRENT_INDEX    3
   #define CLOCK_MENU_DDS_CORE_CLOCK_INDEX 4
-  #define CLOCK_MENU_SAVE_INDEX           5
-  #define CLOCK_MENU_EXIT_INDEX           6
+  #define CLOCK_MENU_CORE_CLOCK_OFFSET    5  
+  #define CLOCK_MENU_SAVE_INDEX           6
+  #define CLOCK_MENU_EXIT_INDEX           7
   #define CLOCK_MENU_LAST_INDEX           CLOCK_MENU_EXIT_INDEX
   
   int ClockSourceIndex=0;
@@ -37,12 +38,14 @@
   String DividerName[2]={" OFF", " ON"};
   int DividerIndex=0;
   #define BASE_DDS_CORE_CLOCK 1000000000.0 //это частота на которую будет сбрасываться значение DDS_Core_Clock в любых "непонятных" случаях
-  #define MAX_DDS_CORE_CLOCK 1520000000.0 //максимально допустимое значение BASE_DDS_CORE_CLOCK
+  //#define BASE_DDS_CORE_CLOCK 999998000.0 //
+  #define MAX_DDS_CORE_CLOCK 1520000000.0 //максимально допустимое значение DDS_CORE_CLOCK
   uint32_t EXT_OSC_Freq=BASE_DDS_CORE_CLOCK;
   uint32_t DDS_Core_Clock=BASE_DDS_CORE_CLOCK; // in MHZ ------> In HZ переделать в герцы
   uint32_t Ref_Clk=0; //реальная частота генератора в Герцах, хранит реальное значение частоты для любого источника и для кварца и для припаянных генераторов и для внешней источника, подключенного ко входу INOSC  
   String DACCurrentName[2]={"Normal", "HI"};
   int DACCurrentIndex=0;
+  int16_t ClockOffset=0;
 
 void DDS_Clock_Config_Menu()
 {
@@ -50,17 +53,19 @@ void DDS_Clock_Config_Menu()
   long long UpButtonHoldReleased=0;
   int DownButtonFunction;
   long long DownButtonHoldReleased=0;
+  modeButton.debounceTime=25;
+  upButton.debounceTime=25;
+  downButton.debounceTime=25;
+  
   while(1)
   {
     modeButton.Update();
     upButton.Update();
     downButton.Update();
-    upButton.debounceTime=25;
-    downButton.debounceTime=25;
     if (modeButton.clicks !=0) SetupMenuPos++;
     if (SetupMenuPos>CLOCK_MENU_LAST_INDEX) SetupMenuPos=CLOCK_MENU_SOURCE_INDEX;
     if ((ClockSourceIndex!=CLOCK_SOURCE_EXT_OSC_INDEX) && (SetupMenuPos==CLOCK_MENU_DIVIDER_INDEX)) SetupMenuPos=CLOCK_MENU_DAC_CURRENT_INDEX; //пропускаем настройку делитля если не выбрано внешнее тактирование
-    if ((ClockSourceIndex==CLOCK_SOURCE_EXT_OSC_INDEX) && (SetupMenuPos==CLOCK_MENU_DDS_CORE_CLOCK_INDEX)) SetupMenuPos=CLOCK_MENU_SAVE_INDEX; //пропускаем ручную натсройку частоты если выбрано внешнее тактирование
+    if ((ClockSourceIndex==CLOCK_SOURCE_EXT_OSC_INDEX) && (SetupMenuPos==CLOCK_MENU_DDS_CORE_CLOCK_INDEX)) SetupMenuPos=CLOCK_MENU_CORE_CLOCK_OFFSET; //пропускаем ручную натсройку частоты если выбрано внешнее тактирование
     if (ClockSourceIndex==CLOCK_SOURCE_EXT_OSC_INDEX) DDS_Core_Clock=EXT_OSC_Freq/(DividerIndex+1);
       
     if (UpButtonFunction < 0 && upButton.depressed == true)  
@@ -72,6 +77,14 @@ void DDS_Clock_Config_Menu()
           else increment=1000000;
         EXT_OSC_Freq=EXT_OSC_Freq+increment;
         if (EXT_OSC_Freq>EXT_OSC_MAX_VALUE) EXT_OSC_Freq=EXT_OSC_MIN_VALUE;
+      }
+      if (SetupMenuPos==CLOCK_MENU_CORE_CLOCK_OFFSET)
+      {
+        //DDS_Core_Clock=DDS_Core_Clock-ClockOffset;
+        ClockOffset=ClockOffset+10;
+        if (ClockOffset>9999) ClockOffset=0;
+        //DDS_Core_Clock=DDS_Core_Clock+ClockOffset;
+        MakeOut();
       }
     } else 
     {
@@ -103,6 +116,13 @@ void DDS_Clock_Config_Menu()
         case CLOCK_MENU_DDS_CORE_CLOCK_INDEX: DDS_Core_Clock=DDS_Core_Clock + Ref_Clk;
           if (DDS_Core_Clock > MAX_DDS_CORE_CLOCK) DDS_Core_Clock=BASE_DDS_CORE_CLOCK;
           break;
+        case CLOCK_MENU_CORE_CLOCK_OFFSET: 
+          //DDS_Core_Clock=DDS_Core_Clock-ClockOffset;
+          ClockOffset++;
+          if (ClockOffset>9999) ClockOffset=0;
+          //DDS_Core_Clock=DDS_Core_Clock+ClockOffset;
+          MakeOut();
+          break;
         case CLOCK_MENU_SAVE_INDEX: 
           SaveClockSettings(); 
           MakeOut();
@@ -124,6 +144,14 @@ void DDS_Clock_Config_Menu()
           else increment=1000000;
         EXT_OSC_Freq=EXT_OSC_Freq-increment;
         if (EXT_OSC_Freq<EXT_OSC_MIN_VALUE) EXT_OSC_Freq=EXT_OSC_MAX_VALUE;
+      }
+      if (SetupMenuPos==CLOCK_MENU_CORE_CLOCK_OFFSET)
+      {
+        //DDS_Core_Clock=DDS_Core_Clock-ClockOffset;
+        ClockOffset=ClockOffset-10;
+        if (ClockOffset<-9999) ClockOffset=0;
+        //DDS_Core_Clock=DDS_Core_Clock+ClockOffset;
+        MakeOut();
       }
     } else 
     {
@@ -152,7 +180,14 @@ void DDS_Clock_Config_Menu()
           break;
         case CLOCK_MENU_DAC_CURRENT_INDEX: DACCurrentIndex=!DACCurrentIndex; break;
         case CLOCK_MENU_DDS_CORE_CLOCK_INDEX: DDS_Core_Clock=DDS_Core_Clock - Ref_Clk;
-          if (DDS_Core_Clock < BASE_DDS_CORE_CLOCK) DDS_Core_Clock=MAX_DDS_CORE_CLOCK;
+          if (DDS_Core_Clock < BASE_DDS_CORE_CLOCK) DDS_Core_Clock=trunc(MAX_DDS_CORE_CLOCK/Ref_Clk)*Ref_Clk; // lower DDS_Core_Clock to a value that is completely divided
+          break;
+        case CLOCK_MENU_CORE_CLOCK_OFFSET: 
+          //DDS_Core_Clock=DDS_Core_Clock-ClockOffset;
+          ClockOffset--;
+          if (ClockOffset<-9999) ClockOffset=0;
+          //DDS_Core_Clock=DDS_Core_Clock+ClockOffset;
+          MakeOut();
           break;
         case CLOCK_MENU_SAVE_INDEX:
           SaveClockSettings(); 
@@ -240,6 +275,15 @@ void DisplayClockSetupMenu()
   display.setCursor(103, 55);
   if (SetupMenuPos==CLOCK_MENU_EXIT_INDEX) display.setTextColor(BLACK, WHITE);
   display.println("EXIT");
+
+  display.setTextColor(WHITE);
+  display.setCursor(30, 55);
+  if (SetupMenuPos==CLOCK_MENU_CORE_CLOCK_OFFSET) display.setTextColor(BLACK, WHITE);
+  display.print("Offset");
+  display.setTextColor(WHITE);
+  if (ClockOffset>=0) display.print(" ");
+    else display.print("-");
+  display.print(abs(ClockOffset));
   display.display();
 }
 
@@ -254,23 +298,26 @@ void LoadClockSettings()
     EXT_OSC_Freq=INIT_EXT_OSC_FREQ;
     DDS_Core_Clock=BASE_DDS_CORE_CLOCK;
     DACCurrentIndex=INIT_DAC_CURRENT_INDEX;
+    ClockOffset=INIT_CLOCK_OFFSET; 
     
     #if DBG==1
-    Serial.print(F("Setting default clock settings"));
-    Serial.print(F("ClockSourceIndex"));
+    Serial.println(F("Setting default clock settings"));
+    Serial.print(F("ClockSourceIndex="));
     Serial.println(ClockSourceIndex);
-    Serial.print(F("XO_Freq_Index"));
+    Serial.print(F("XO_Freq_Index="));
     Serial.println(XO_Freq_Index);
-    Serial.print(F("TCXO_Freq_Index"));
+    Serial.print(F("TCXO_Freq_Index="));
     Serial.println(TCXO_Freq_Index);
-    Serial.print(F("DividerIndex"));
+    Serial.print(F("DividerIndex="));
     Serial.println(DividerIndex);
-    Serial.print(F("EXT_OSC_Freq"));
+    Serial.print(F("EXT_OSC_Freq="));
     Serial.println(EXT_OSC_Freq);
-    Serial.print(F("DDS_Core_Clock"));
+    Serial.print(F("DDS_Core_Clock="));
     Serial.println(DDS_Core_Clock);
-    Serial.print(F("DACCurrentIndex"));
+    Serial.print(F("DACCurrentIndex="));
     Serial.println(DACCurrentIndex);
+    Serial.print(F("ClockOffset="));
+    Serial.println(ClockOffset);
     #endif
     
     SaveClockSettings();
@@ -283,23 +330,29 @@ void LoadClockSettings()
     EEPROM.get(EXT_OSC_FREQ_ADR, EXT_OSC_Freq);
     EEPROM.get(DDS_CORE_CLOCK_ADR, DDS_Core_Clock);
     EEPROM.get(DAC_CURRENT_INDEX_ADR, DACCurrentIndex);
+    EEPROM.get(CORE_CLOCK_OFFSET_ADR, ClockOffset);
+    
     #if DBG==1
-    Serial.print(F("Reading clock settings from EEPROM"));
-    Serial.print(F("ClockSourceIndex"));
+    Serial.println(F("Reading clock settings from EEPROM"));
+    Serial.print(F("ClockSourceIndex="));
     Serial.println(ClockSourceIndex);
-    Serial.print(F("XO_Freq_Index"));
+    Serial.print(F("XO_Freq_Index="));
     Serial.println(XO_Freq_Index);
-    Serial.print(F("TCXO_Freq_Index"));
+    Serial.print(F("TCXO_Freq_Index="));
     Serial.println(TCXO_Freq_Index);
-    Serial.print(F("DividerIndex"));
+    Serial.print(F("DividerIndex="));
     Serial.println(DividerIndex);
-    Serial.print(F("EXT_OSC_Freq"));
+    Serial.print(F("EXT_OSC_Freq="));
     Serial.println(EXT_OSC_Freq);
-    Serial.print(F("DDS_Core_Clock"));
+    Serial.print(F("DDS_Core_Clock="));
     Serial.println(DDS_Core_Clock);
-    Serial.print(F("DACCurrentIndex"));
+    Serial.print(F("DACCurrentIndex="));
     Serial.println(DACCurrentIndex);
+    Serial.print(F("ClockOffset="));
+    Serial.println(ClockOffset);
     #endif
+
+    //DDS_Core_Clock=DDS_Core_Clock+ClockOffset;
   }
   
   bool PLL=false;
@@ -331,6 +384,7 @@ void SaveClockSettings()
   EEPROM.put(EXT_OSC_FREQ_ADR, EXT_OSC_Freq);
   EEPROM.put(DDS_CORE_CLOCK_ADR, DDS_Core_Clock);
   EEPROM.put(DAC_CURRENT_INDEX_ADR, DACCurrentIndex);
+  EEPROM.put(CORE_CLOCK_OFFSET_ADR, ClockOffset);
   
   bool PLL=false;
   if (ClockSourceIndex!=CLOCK_SOURCE_EXT_OSC_INDEX) 
