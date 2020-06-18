@@ -1,3 +1,9 @@
+/*                                        
+ *                                        ********************************************************
+ *                                        *   https://gra-afch.com/product-category/rf-units/    *
+ *                                        ********************************************************                                      
+ */
+
 #ifndef __MAIN_H
 #define __MAIN_H
 
@@ -10,7 +16,7 @@
 #include <Wire.h>
 #include <EEPROM.h>
 
-#define DBG 1 //debug messsages 0 - disabled, 1 - enabled
+#define DBG 0 //debug messsages 0 - disabled, 1 - enabled
 
 #define MODE_PIN     A0
 #define DOWN_PIN     A1

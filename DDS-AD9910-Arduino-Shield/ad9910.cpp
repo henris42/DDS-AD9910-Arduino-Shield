@@ -1,12 +1,17 @@
-/******************************************************************************
- * AD9910 - DDS Power Supply 3.3V � 1.8V (China board)
- * Internal PLL 1GHz, REF CLK Oscillator 40Mhz (I do not recommend using) N=25, 
- * For More pure spectrum Recomendeted replace VCTCXO 638CGP-10-3 10Mhz N=100
- * For signal without harmonics and the spur is required at the output of 
- * +IOUT & -IOUT to use a transformer or ADT1-1WT ADT2 + LPF 400MHZ 7rd order.
- * Overclocking the Internal PLL to 1.1 GHz, REF CLK = 10Mhz(VCTCXO 638CGP-10-3), N = 110
- * Fout 500 Mhz without LPF
- * 05.08.2017
+/****************************************************************************
+ *   OFICIAL WEB-SITE:  https://gra-afch.com/product-category/rf-units/     *
+ ****************************************************************************                                      
+ *
+ * AD9910 - DDS Power Supply 3.3V - 1.8V
+ * Internal PLL up to 1.52 GHz, REF CLK Oscillator 5 - 60Mhz (PLL Enabled)
+ * For More pure spectrum Recomendeted exteral oscillator 1 - 1.5 GHz
+ * For signal without harmonics and the spur use an RF transformer  
+ * ADT2-1T + LPF 7rd order Range: 0.4-450MHZ
+ * ADT2-1T-1P + LPF 7rd order Range: 8-600MHZ
+ * WBC2-1TLB + LPF 7rd order Range: 0.1(-4dB)-600MHZ(-7dB)
+ * CX2147 + LPF 7rd order Range: 0.02(-3dB)-365(-3dB)/ or 0.01(-8dB)-480(-8dB)
+ * Fout up 600 Mhz 
+ * 17.06.2020
  * Author Grisha Anofriev e-mail: grisha.anofriev@gmail.com
 ******************************************************************************/
 #include <Float64.h>
@@ -189,9 +194,6 @@ void DDS_Fout (uint32_t *F_OUT, int16_t Amplitude_dB, uint8_t Num_Prof)
    int Prof=Num_Prof;
    Prof=Prof-14; // address of 0 profile: 0x0E
 
-   Serial.print("Prof=");
-   Serial.println(Prof);
-   
    if (bitRead(Prof, 0)==1) HAL_GPIO_WritePin(DDS_PROFILE_0_GPIO_PORT, DDS_PROFILE_0_PIN, GPIO_PIN_SET);
     else HAL_GPIO_WritePin(DDS_PROFILE_0_GPIO_PORT, DDS_PROFILE_0_PIN, GPIO_PIN_RESET);
    if (bitRead(Prof, 1)==1) HAL_GPIO_WritePin(DDS_PROFILE_1_GPIO_PORT, DDS_PROFILE_1_PIN, GPIO_PIN_SET);

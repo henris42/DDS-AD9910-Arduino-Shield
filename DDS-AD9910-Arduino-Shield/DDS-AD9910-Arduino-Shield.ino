@@ -1,4 +1,8 @@
-/* 
+/*                                        
+ *                                        ********************************************************
+ *                                        *   https://gra-afch.com/product-category/rf-units/    *
+ *                                        ********************************************************                                      
+ *
  *  
  *  Для любой модуляции нужно сначала вызывать фнукцию calcBestStepRate перед PrepRegistersToSaveWaveForm, 
  *  зачастую это так и сдлеано внутри функций SaveAMWavesToRAM и SaveFMWavesToRAM
@@ -31,7 +35,7 @@
  */
 #include "main.h"
 #include "ad9910.h"
-#define FIRMWAREVERSION 2.07 //02.06.2020 Rel.8
+#define FIRMWAREVERSION 2.071 //02.06.2020 Rel.8
 
 #define LOW_FREQ_LIMIT  100000 
 #define HIGH_FREQ_LIMIT  600000000 

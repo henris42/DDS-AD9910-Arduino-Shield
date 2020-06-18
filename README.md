@@ -1,7 +1,13 @@
-# DDS-AD9910-Arduino-Shield (Software Version 2)
+# DDS-AD9910-Arduino-Shield (Software Version 2.x)
 DDS (Direct Digital Synthesis) Analog Devices AD9910 Arduino Shield by GRA &amp; AFCH
 
+Web-site: https://gra-afch.com
+Direct link to category:  https://gra-afch.com/product-category/rf-units/
+
 Easy connection to Arduino Mega without additional wires and converters. All functions of the DDS AD9910 are brought to the contacts of the Arduino Mega thanks to this you can fully reveal all the capabilities of the DDS AD9910.
+
+The program implements (involved) AD9910 technologies such as:
+Sweep, DRG (Digital Ramp Generator), RAM, AM, FM modulation
 
 Key Benefits:
 
@@ -21,12 +27,19 @@ Key Benefits:
 
 1. XO - Crystal 25Mhz 20ppm internal oscillator with PLL at 1 GHz,
 2. TCXO - 10Mhz 1ppm external oscillator PLL at 1 GHz,
-3. EGEN - external generator up to 1 GHz
+3. EGEN - external generator up to 1.5 GHz
 4. OCXO - Oven Controlled Crystal Oscillators deliver the ultimate piezo electric performance with stabilities down to less than ± 1ppb.
 (*) additionally used balancing transformer for TCXO, EGEN and OCXO options
 
-*Easy to connect OLED display
-*Control buttons for control via the program menu.
+* Easy to connect OLED display.
+* Control buttons for control via the program menu.
+* The synthesizer is capable to generate sine wave, AM or FM modulated signal.
+* The software allows you to select and configure the frequency of the clock generator through the user menu (without the need to recompile the program).
+* Any settings can be stored in non-volatile EEPROM memory (located at Arduino Mega).
+* Basic settings are applied and saved automatically.
+* This shield support overclocking the AD9910 core to 1.5 GHz (heatsink is recommended).
+* DDS AD9910 Shield has ability to generate a signal up to 600 MHz with a core overclocking up to 1.5 GHz (to suppress harmonics, it is recommended to  overclock the AD9910 for frequencies above 400 MHz).
+* Has ability to increase output power by +4 dBm when “DAC Current HI” is activated.
 
 # Switching a clock source is made by next components:
 <pre>
