@@ -12,7 +12,7 @@ Direct link to category:  https://gra-afch.com/product-category/rf-units/
 
 "Libraries" - contains libraries that are only needed for compilation: place them to "C:\Users\[USER]\Documents\Arduino\libraries", where [USER] - your windows username.
 
-Easy connection to Arduino Mega without additional wires and converters. All functions of the DDS AD9910 are brought to the contacts of the Arduino Mega thanks to this you can fully reveal all the capabilities of the DDS AD9910.
+This AD9910 Shield can be easily connected to Arduino Mega without additional wires and converters. All functions of the DDS AD9910 are brought to the contacts of the Arduino Mega thanks to this you can fully reveal all the capabilities of the DDS AD9910.
 
 The program implements (involved) AD9910 technologies such as:
 Sweep, DRG (Digital Ramp Generator), RAM, AM, FM modulation
