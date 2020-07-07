@@ -1,6 +1,6 @@
-/*                                        ********************************************************
- *                                        *   https://gra-afch.com/product-category/rf-units/    *
- *                                        ********************************************************                                      
+/*                                        *******************************************
+ *                                        *             GRA-AFCH.COM                *
+ *                                        *******************************************                                      
  */
 
 /******************************************************************************
@@ -353,8 +353,12 @@ extern void DDS_FM (uint32_t F_carrier, uint32_t F_mod, uint32_t F_dev);
 void HAL_GPIO_WritePin (int port, int pin, int mode);
 void HAL_SPI_Transmit(int *blank, uint8_t *strBuffer, int nums, int pause);
 void ASF_SET (uint16_t *Amplitude_ramp_rate1, uint16_t Amplitude_scale_factor1, uint8_t Amplitude_step_size1);
-extern void DDS_Init_OLD(void);
+//extern void DDS_Init_OLD(void);
 void calcBestStepRate(uint16_t *Step, uint64_t *Step_Rate, uint32_t F_mod);
 uint32_t CalcRealDDSCoreClockFromOffset();
-
+//void SaveDTMFToRAM (uint32_t Tone1, uint32_t Tone2, uint32_t F_dev);
+//void SingleProfileSSBDTMF(uint32_t freq_output, int16_t amplitude_dB_output);
+void DigitalRamp(uint32_t FTWStart, uint32_t FTWEnd, uint32_t FTWStepSize, uint16_t StepRate);
+void Sweep(uint32_t StartSweepFreq, uint32_t StopSweepFreq, uint16_t SweepTime, uint8_t SweepTimeFormat);
+uint32_t FreqToFTW(uint32_t Freq);
 #endif

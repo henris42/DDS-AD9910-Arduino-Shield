@@ -1,7 +1,6 @@
-/*                                        
- *                                        ********************************************************
- *                                        *   https://gra-afch.com/product-category/rf-units/    *
- *                                        ********************************************************                                      
+/*                                        *******************************************
+ *                                        *             GRA-AFCH.COM                *
+ *                                        *******************************************                                      
  */
 
 #ifndef __MAIN_H
@@ -27,6 +26,8 @@ void UpdateDisplay();
 void MakeOut();
 
 void SingleProfileFreqOut(uint32_t freq_output, int16_t Amplitude_dB_output);
+bool IsSweepTimeTooLong();
+
 
 extern ClickButton modeButton;
 extern ClickButton upButton;

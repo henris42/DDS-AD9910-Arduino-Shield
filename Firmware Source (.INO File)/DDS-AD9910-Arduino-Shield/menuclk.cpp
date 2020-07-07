@@ -1,8 +1,8 @@
-/*                                        
- *                                        ********************************************************
- *                                        *   https://gra-afch.com/product-category/rf-units/    *
- *                                        ********************************************************                                      
+/*                                        *******************************************
+ *                                        *             GRA-AFCH.COM                *
+ *                                        *******************************************                                      
  */
+ 
 #include "menuclk.h"
 
   int SetupMenuPos=0;
@@ -293,7 +293,7 @@ void DisplayClockSetupMenu()
 
 void LoadClockSettings()
 {
-  if (EEPROM.read(CLOCK_SETTINGS_FLAG_ADR)!=55)
+  if (EEPROM.read(CLOCK_SETTINGS_FLAG_ADR)!=56)
   {
     ClockSourceIndex=INIT_CLOCK_SOURCE_INDEX;
     XO_Freq_Index=INIT_CLOCK_XO_INDEX; 
@@ -401,6 +401,6 @@ void SaveClockSettings()
     Ref_Clk=EXT_OSC_Freq;
   }
 
-  EEPROM.write(CLOCK_SETTINGS_FLAG_ADR, 55);
+  EEPROM.write(CLOCK_SETTINGS_FLAG_ADR, 56);
   DDS_Init(PLL, DividerIndex, Ref_Clk);
 }
