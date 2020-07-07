@@ -4,6 +4,14 @@ DDS (Direct Digital Synthesis) Analog Devices AD9910 Arduino Shield by GRA &amp;
 Web-site: https://gra-afch.com
 Direct link to category:  https://gra-afch.com/product-category/rf-units/
 
+# GA_Flasher can be used to upload compiled firmware from "Firmware Compiled (.HEX File)" folder: https://github.com/afch/GA_Flasher
+
+"Firmware Compiled (.HEX File)" - folder contains pre-Compiled firmware (.HEX File), that can be uploaded via "AvrDude", GA_Flasher or any other software for flashing Atmega 2560
+
+"Firmware Source (.INO File)" - folder contains source of firmware that can be compiled (modified if necessary) and uploaded via Arduino IDE: https://www.arduino.cc/en/Main/Software
+
+"Libraries" - contains libraries that are only needed for compilation: place them to "C:\Users\[USER]\Documents\Arduino\libraries", where [USER] - your windows username.
+
 Easy connection to Arduino Mega without additional wires and converters. All functions of the DDS AD9910 are brought to the contacts of the Arduino Mega thanks to this you can fully reveal all the capabilities of the DDS AD9910.
 
 The program implements (involved) AD9910 technologies such as:
@@ -55,5 +63,3 @@ Key Benefits:
 </pre>
 
 Where V means that the component must be installed (soldered), and X - means that the component must be removed
-
-# GA_Flasher can be used to upload compiled firmware from "Bin" folder: https://github.com/afch/GA_Flasher
