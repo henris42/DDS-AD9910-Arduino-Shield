@@ -67,6 +67,10 @@
 #define SWEEP_TIME_ADR 78
 #define SWEEP_TIME_FORMAT_ADR 80
 
+#define STEREO_LEVEL_ADR 81
+#define STEREO_PAN_ADR 82
+#define STEREO_PILOT_ADR 83
+
 #define MAIN_SETTINGS_FLAG_ADR 100 // defualt settings 
 // ADR 101 reserved for clock settings
 #define MODULATION_SETTINGS_FLAG 102 // defualt settings
@@ -112,15 +116,21 @@
 #define MOD_MENU_SWEEP_TIME_INDEX 11
 #define MOD_MENU_SWEEP_TIME_FORMAT_INDEX 12
 
-#define MOD_MENU_SAVE_INDEX 13
-#define MOD_MENU_EXIT_INDEX 14
+#define MOD_MENU_ST_LEVEL_INDEX 13
+#define MOD_MENU_ST_PAN_INDEX 14
+#define MOD_MENU_ST_PILOT_INDEX 15
+
+#define MOD_MENU_SAVE_INDEX 16
+#define MOD_MENU_EXIT_INDEX 17
+
 
 #define NONE_MOD_TYPE 0
 #define AM_MOD_TYPE 1
 #define FM_MOD_TYPE 2
 #define SWEEP_MOD_TYPE 3
-#define LSB_MOD_TYPE 4
-#define USB_MOD_TYPE 5
+//#define LSB_MOD_TYPE 4
+//#define USB_MOD_TYPE 5
+#define ST_MOD_TYPE 4
 
 //*********************************
 
@@ -179,12 +189,16 @@ void setup()
 
   int ModMenuPos=0;
   int ModIndex=0;
-  String ModName[4]={"None", "AM", "FM", "Sweep"};
+  String ModName[5]={"None", "AM", "FM", "Sweep", "ST"};
   int MFreqK=0;
   int MFreqH=0;
   int AMDepth=0;
   int FMDevK=0;
   int FMDevH=0;
+
+  int STLevel=3;
+  int STPan=0;
+  bool STPilot=true;  
 
   #define DEFUALT_SWEEP_START_FREQ 100000
   #define DEFUALT_SWEEP_END_FREQ 200000
@@ -320,6 +334,9 @@ void MakeOut()
     break;
   case FM_MOD_TYPE: // FM частотная модуляция
     SaveFMWavesToRAM(M*1000000L + K*1000L + H, MFreqK*1000L+MFreqH, FMDevK*1000L+FMDevH);
+    break;
+  case ST_MOD_TYPE: // FM частотная модуляция
+    SaveStereoWavesToRAM(M*1000000L + K*1000L + H, STLevel, STPan, STPilot);
     break;
   case SWEEP_MOD_TYPE:
     Sweep(GetSweepStartFreq(), GetSweepEndFreq(), SweepTime, SweepTimeFormat);
@@ -598,6 +615,27 @@ void displayModulationMenu()
     
   }
 
+  if (ModIndex==ST_MOD_TYPE)
+  {
+    display.setCursor(0,24);
+    display.setTextColor(WHITE);
+    display.print("Level: ");
+    if (ModMenuPos==MOD_MENU_ST_LEVEL_INDEX) display.setTextColor(BLACK, WHITE);
+    display.print(STLevel);
+    display.setCursor(0,32);
+    display.setTextColor(WHITE);
+    display.print("Pan: ");
+    if (ModMenuPos==MOD_MENU_ST_PAN_INDEX) display.setTextColor(BLACK, WHITE);
+    display.print(STPan);
+    display.setCursor(0,40);
+    display.setTextColor(WHITE);
+    display.print("Pilot: ");
+    if (ModMenuPos==MOD_MENU_ST_PILOT_INDEX) display.setTextColor(BLACK, WHITE);
+    STPilot?display.print("ON"):display.print("OFF");
+    
+  }
+  
+  display.setTextColor(WHITE);
   display.setCursor(0, 55);
   if (ModMenuPos==MOD_MENU_SAVE_INDEX) display.setTextColor(BLACK, WHITE);
   display.println("SAVE");
@@ -632,10 +670,15 @@ void Modultaion_Menu()
 
     if (modeButton.clicks !=0) ModMenuPos++;
     if (ModMenuPos>MOD_MENU_EXIT_INDEX) ModMenuPos=MOD_MENU_TYPE_INDEX;
+    //if ((ModIndex==ST_MOD_TYPE) && (ModMenuPos==MOD_MENU_ST_PILOT_INDEX)) ModMenuPos=MOD_MENU_SAVE_INDEX;
+    if ((ModIndex==ST_MOD_TYPE) && (ModMenuPos==MOD_MENU_MFREQ_K_INDEX)) ModMenuPos=MOD_MENU_ST_LEVEL_INDEX;
+    if ((ModIndex==SWEEP_MOD_TYPE) && (ModMenuPos==MOD_MENU_ST_LEVEL_INDEX)) ModMenuPos=MOD_MENU_SAVE_INDEX;
+    
     if ((ModIndex==NONE_MOD_TYPE) && (ModMenuPos==MOD_MENU_MFREQ_K_INDEX)) ModMenuPos=MOD_MENU_SAVE_INDEX; //jump to save buton if modulation is none and MODE button was pressed
     if ((ModIndex==AM_MOD_TYPE) && (ModMenuPos==MOD_MENU_FM_DEV_H_INDEX)) ModMenuPos=MOD_MENU_SAVE_INDEX ; //jump to save buton if modulation is AM and in Depth position and MODE button was pressed
     if ((ModIndex==SWEEP_MOD_TYPE) && (ModMenuPos==MOD_MENU_MFREQ_K_INDEX)) ModMenuPos=MOD_MENU_SWEEP_START_FREQ_M_INDEX; //jump to Sweep Start Freq position when sweep enabled
-    if ((ModIndex!=SWEEP_MOD_TYPE) && (ModMenuPos==MOD_MENU_SWEEP_START_FREQ_M_INDEX)) ModMenuPos=MOD_MENU_SAVE_INDEX; //jump to Save position when not in sweep mode
+    if ((ModIndex!=SWEEP_MOD_TYPE) && (ModIndex!=ST_MOD_TYPE) && (ModMenuPos==MOD_MENU_SWEEP_START_FREQ_M_INDEX)) ModMenuPos=MOD_MENU_SAVE_INDEX; //jump to Save position when not in sweep mode
+    
 
     if (upButton.clicks != 0) functionUpButton = upButton.clicks;
     if ((functionUpButton == 1 && upButton.depressed == false) ||
@@ -645,7 +688,7 @@ void Modultaion_Menu()
       {
         case MOD_MENU_TYPE_INDEX: 
           ModIndex++;
-          if (ModIndex>SWEEP_MOD_TYPE) ModIndex=0;
+          if (ModIndex>ST_MOD_TYPE) ModIndex=0;
           break;
         case MOD_MENU_MFREQ_K_INDEX : 
           MFreqK++;
@@ -707,6 +750,17 @@ void Modultaion_Menu()
         case MOD_MENU_SWEEP_TIME_FORMAT_INDEX :
           SweepTimeFormat++;
           if (SweepTimeFormat>3) SweepTimeFormat=0;
+          break;
+        case MOD_MENU_ST_LEVEL_INDEX :
+          STLevel++;
+          if (STLevel>3) STLevel=3;
+          break; 
+        case MOD_MENU_ST_PAN_INDEX :
+          STPan++;
+          if (STPan>3) STPan=3;
+          break; 
+        case MOD_MENU_ST_PILOT_INDEX :
+          STPilot=true;
           break; 
         case MOD_MENU_SAVE_INDEX: 
           if ((ModIndex==SWEEP_MOD_TYPE) && (IsSweepFreqsValid()==false)) break;
@@ -726,7 +780,7 @@ void Modultaion_Menu()
       {
         case 0: 
           ModIndex--;
-          if (ModIndex<0) ModIndex=SWEEP_MOD_TYPE ;
+          if (ModIndex<0) ModIndex=ST_MOD_TYPE ;
           break;
         case 1: 
           MFreqK--;
@@ -789,6 +843,18 @@ void Modultaion_Menu()
           SweepTimeFormat--;
           if (SweepTimeFormat<0) SweepTimeFormat=3;
           break; 
+        case MOD_MENU_ST_LEVEL_INDEX :
+          STLevel--;
+          if (STLevel<0) STLevel=0;
+          break; 
+        case MOD_MENU_ST_PAN_INDEX :
+          STPan--;
+          if (STPan<-3) STPan=-3;
+          break; 
+        case MOD_MENU_ST_PILOT_INDEX :
+          STPilot=false;
+          break; 
+
         case MOD_MENU_SAVE_INDEX: 
           if ((ModIndex==SWEEP_MOD_TYPE) && (IsSweepFreqsValid()==false)) break;
           if ((ModIndex==SWEEP_MOD_TYPE) && (IsSweepTimeTooLong()==true)) break;
@@ -835,6 +901,10 @@ void SaveModulationSettings()
   
   EEPROM.put(SWEEP_TIME_ADR, SweepTime);
   EEPROM.put(SWEEP_TIME_FORMAT_ADR, SweepTimeFormat);
+  
+  EEPROM.put(STEREO_LEVEL_ADR, STLevel);
+  EEPROM.put(STEREO_PAN_ADR, STPan);
+  EEPROM.put(STEREO_PILOT_ADR, STPilot);
 
   
   EEPROM.write(MODULATION_SETTINGS_FLAG, 56);
@@ -863,6 +933,10 @@ void LoadModulationSettings()
 
     SweepTime=INIT_SWEEP_TIME;
     SweepTimeFormat=INIT_SWEEP_TIME_FORMAT;
+
+    STLevel=3;
+    STPan=0;
+    STPilot=true;
     
     SaveModulationSettings();
   } else
@@ -884,6 +958,11 @@ void LoadModulationSettings()
     
     EEPROM.get(SWEEP_TIME_ADR, SweepTime);
     EEPROM.get(SWEEP_TIME_FORMAT_ADR, SweepTimeFormat);
+
+    EEPROM.get(STEREO_LEVEL_ADR, STLevel);
+    EEPROM.get(STEREO_PAN_ADR, STPan);
+    EEPROM.get(STEREO_PILOT_ADR, STPilot);
+
   }
 }
 

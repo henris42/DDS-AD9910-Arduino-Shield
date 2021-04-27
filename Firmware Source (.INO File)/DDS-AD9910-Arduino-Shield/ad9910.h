@@ -341,6 +341,7 @@ extern void SaveFMWavesToRAM (uint32_t F_carrier, uint32_t F_mod, uint32_t F_dev
 extern void SaveAMWavesToRAM(uint32_t F_carrier, uint32_t F_mod, uint32_t AM_DEPH, int16_t Amplitude_dB);
 extern void PlaybackFMFromRAM(int16_t Amplitude_dB);
 extern void PlaybackAMFromRAM(uint32_t F_carrier);
+extern void SaveStereoWavesToRAM (uint32_t F_carrier, int level, int pan, bool pilot);
 
 extern uint64_t strFTW[];
 extern uint16_t strdBm[];

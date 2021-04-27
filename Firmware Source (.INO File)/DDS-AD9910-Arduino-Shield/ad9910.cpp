@@ -24,6 +24,7 @@
 #include <math.h>
 #include <float.h>
 #include <Arduino.h>
+
 int hspi1=0;
 
 uint32_t DAC_Current;
@@ -224,19 +225,19 @@ void PrepRegistersToSaveWaveForm (uint64_t Step_Rate, uint16_t Step)
    
   strBuffer[4] = highByte(Step); //0xF9;  // End RAM address [9:2] bits in register 15:8 bit 0x1F 1024   (0xC0 + 0xF9) 0.....999 = 1000
   strBuffer[5] = lowByte(Step); //0xC0;  // End RAM address [1:0] bits in register 7:6 bit  0xC0 
-
+#if DBG==1
   Serial.print("highByte((uint16_t)Step_Rate)=");
-  Serial.println(highByte((uint16_t)Step_Rate));
+  Serial.println(highByte((uint16_t)Step_Rate),HEX);
 
   Serial.print("lowByte((uint16_t)Step_Rate)=");
-  Serial.println(lowByte((uint16_t)Step_Rate));
+  Serial.println(lowByte((uint16_t)Step_Rate),HEX);
 
   Serial.print("highByte(Step)=");
-  Serial.println(highByte(Step));
+  Serial.println(highByte(Step),HEX);
 
   Serial.print("lowByte(Step)=");
-  Serial.println(lowByte(Step));
-
+  Serial.println(lowByte(Step),HEX);
+#endif
    
   strBuffer[6] = 0x00;  // Start RAM address [9:2] bits in register 15:8 bit
   strBuffer[7] = 0x00;  // Start RAM address [1:0] bits in register 7:6 bit
@@ -543,6 +544,99 @@ void PlaybackFMFromRAM(int16_t Amplitude_dB)
    DDS_UPDATE();
 }
 
+
+void SaveStereoWavesToRAM (uint32_t F_carrier, int level, int pan, bool pilot) {
+
+  Serial.println(F("SaveStereoWavesToRAM"));
+  //Serial.println(F_carrier);
+  Serial.println(level);
+  Serial.println(pan);
+  Serial.println(pilot);
+  uint64_t Step_Rate;
+  uint16_t Step;
+  uint16_t n;
+  double dev;
+  double Rad;
+  double Sin=0;
+  double RadIncrement=0;
+  uint32_t FREQ_FM=0;
+  uint32_t FTW_FM=0;
+  uint8_t FTW_FM_8_bit[4];
+  uint32_t RealDDSCoreClock=CalcRealDDSCoreClockFromOffset();
+  double fsteprate;
+  
+  Step=1000;
+
+  fsteprate=((double)RealDDSCoreClock/4.0)/(76000.0*10.0);
+  Step_Rate=(uint64_t)round(fsteprate);
+  Step=(uint32_t)((double)Step*(round(fsteprate)/fsteprate));
+
+#if DBG==1  
+  Serial.println((uint32_t)RealDDSCoreClock);
+  Serial.println((round(fsteprate)/fsteprate),8);
+  Serial.println(fsteprate,8);  
+  Serial.println((uint32_t)Step_Rate);
+  Serial.println((uint32_t)Step);
+#endif
+
+  PrepRegistersToSaveWaveForm(Step_Rate, Step);
+
+  RadIncrement=(2.0*PI)/Step;
+  Rad = 0; 
+  HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);
+  uint8_t MemAdr=RAM_Start_Word;
+  HAL_SPI_Transmit(&hspi1, &MemAdr, 1, 1000);
+    
+   float64_t f64FREQ_FM;//=f64(FREQ_FM);
+   float64_t f64CoreClock=f64(RealDDSCoreClock);
+   float64_t TwoPower32=f64(4294967295UL);
+   float64_t f64FTW;
+   double chA, cha0;
+   double chB, chb0;
+   double fa, fb, vol, pn;
+   bool a;
+   uint_fast8_t softfloat_roundingMode;
+   softfloat_roundingMode=softfloat_round_near_maxMag;
+
+   vol=(double)level/3.0;
+   pn=(3.0+(double)pan)/6.0;
+   cha0=0.0;
+   chb0=0.0;
+  
+  
+  for (n = 0; n < Step; n++)
+    {
+     cha0=0.5*vol*sin(Rad*2.0);
+     chb0=0.5*vol*sin(Rad*3.0);
+     double pl=0.0;
+     if(pilot)pl=0.1*sin(Rad*25.0);
+
+     chA=(pn)*cha0;
+     chB=(1.0-pn)*chb0;
+     
+     dev=(0.9*(((chA+chB)/2.0)+((chA-chB)/2.0)*sin(50.0*Rad))+pl)*75000.0;
+     FREQ_FM = F_carrier + dev;
+
+     
+    f64FREQ_FM=f64(FREQ_FM);
+   f64FTW=f64_div(TwoPower32, f64CoreClock);
+   f64FTW=f64_mul(f64FTW, f64FREQ_FM);
+   
+   FTW_FM=f64_to_ui32(f64FTW, softfloat_roundingMode, a);
+     
+     FTW_FM_8_bit[0]=(FTW_FM>>24);
+     FTW_FM_8_bit[1]=(FTW_FM>>16);
+     FTW_FM_8_bit[2]=(FTW_FM>>8);
+     FTW_FM_8_bit[3]=FTW_FM;
+     HAL_SPI_Transmit(&hspi1, FTW_FM_8_bit, 4, 1000);  
+     Rad = Rad + RadIncrement; 
+    }
+    HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_SET);
+    DDS_UPDATE();
+     Serial.println("FM wave saved to RAM...");
+    PlaybackFMFromRAM(A*-1);
+  
+}
 
 
 /*****************************************************************************
