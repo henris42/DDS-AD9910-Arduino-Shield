@@ -3,7 +3,7 @@
 Mode *ST* has been added to the modulation options. This generates standard FM radio stereo signal, with separate tone in each channel.
 Tone level and Pan can be adjusted, and pilot signal can be turned on/off. Tone frequencies are not adjustable in this release, but they should be sufficient for adjusting old FM receivers.
 
-Note that there are no clock frequescies that produce the exact 19kHz pilot. Clock setting of 1000 should produce sufficient results (to be measured later).
+Note that there are no clock frequencies that produce the exact 19kHz pilot. Clock setting of 1000 should produce sufficient results (to be measured later).
 
 //henris42
 
