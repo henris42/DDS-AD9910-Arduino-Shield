@@ -1,3 +1,13 @@
+# Update FM Stereo Modulation mode:
+
+Mode *ST* has been added to the modulation options. This generates standard FM radio stereo signal, with separate tone in each channel.
+Tone level and Pan can be adjusted, and pilot signal can be turned on/off. Tone frequencies are not adjustable in this release, but they should be sufficient for adjusting old FM receivers.
+
+Note that there are no clock frequescies that produce the exact 19kHz pilot. Clock setting of 1000 should produce sufficient results (to be measured later).
+
+//henris42
+
+
 # DDS-AD9910-Arduino-Shield (Software Version 2.x)
 DDS (Direct Digital Synthesis) Analog Devices AD9910 Arduino Shield by GRA &amp; AFCH
 
